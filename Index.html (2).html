@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.A.R.V.I.S. Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background-color: #020c1a;
+            color: #64ffda;
+            overflow: hidden;
+        }
+
+        /* --- JARVIS-style animations and elements --- */
+        .hud-element {
+            border: 1px solid #1a5c6e;
+            background-color: rgba(10, 25, 47, 0.85);
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 15px rgba(100, 255, 218, 0.1);
+            opacity: 0;
+            transform: scale(0.9);
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+
+        .boot-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #020c1a;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: #64ffda;
+        }
+
+        .boot-text {
+            opacity: 0;
+            animation: boot-fade 1.5s ease-in-out forwards;
+        }
+
+        @keyframes boot-fade {
+            0% { opacity: 0; }
+            50% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* --- Arc Reactor Button --- */
+        #start-btn {
+           width: 150px;  
+            height: 150px;  
+            border-radius: 50%;  
+            background: radial-gradient(circle, #64ffda, #133c48 60%);  
+            border: 3px solid #64ffda;  
+            box-shadow: 0 0 20px #64ffda, inset 0 0 20px rgba(100, 255, 218, 0.5);  
+            transition: all 0.3s ease;  
+            position: relative; 
+        }
+        #start-btn:before {
+          content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%; height: 80%;
+            border-radius: 50%;
+            border: 2px solid #64ffda;
+            animation: spin 8s linear infinite;
+        }
+        #start-btn:after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60%; height: 60%;
+            border-radius: 50%;
+            border: 2px dashed #64ffda;
+            animation: spin-reverse 12s linear infinite;
+        }
+        #start-btn.listening {
+            animation: pulse-glow 1.5s infinite;
+        }
+        
+        #gemini-output.thinking {
+             border-color: #64ffda;
+             animation: pulse-glow-border 1.5s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px #64ffda, inset 0 0 20px rgba(100, 255, 218, 0.5); }
+            50% { box-shadow: 0 0 40px #64ffda, inset 0 0 30px rgba(100, 255, 218, 0.7); }
+        }
+        @keyframes pulse-glow-border {
+            0%, 100% { box-shadow: 0 0 15px rgba(100, 255, 218, 0.1); }
+            50% { box-shadow: 0 0 25px rgba(100, 255, 218, 0.5); }
+        }
+        @keyframes spin { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
+        @keyframes spin-reverse { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(-360deg); } }
+        
+        /* Custom scrollbar for modules */
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #0a192f; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #1a5c6e; border-radius: 4px; border: 2px solid #0a192f; }
+        
+        /* Task List styles */
+        #task-list li {
+            background-color: rgba(0,0,0,0.2);
+            padding: 4px 8px;
+            border-left: 2px solid #1a5c6e;
+            margin-bottom: 4px;
+        }
+    </style>
+    <!-- Authentication styles (appended) -->
+    <style>
+        :root {
+            --glow-color: #00e5ff;
+            --primary-blue: #0abdc6;
+            --background-dark: #030a14;
+            --text-color: #a7d1d2;
+            --border-color: rgba(0, 229, 255, 0.3);
+        }
+
+        .jarvis-container {
+            width: 100%;
+            max-width: 450px;
+            padding: 2rem;
+            background: rgba(1, 19, 34, 0.85);
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 0 25px rgba(0, 229, 255, 0.12);
+            border-radius: 1rem;
+            position: relative;
+            z-index: 60;
+        }
+
+        .header-text {
+            text-align: center;
+            font-size: 1.25rem;
+            letter-spacing: 2px;
+            color: var(--primary-blue);
+            text-shadow: 0 0 10px var(--glow-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .status-text {
+            text-align: center;
+            font-size: 0.8rem;
+            letter-spacing: 1.5px;
+            margin-bottom: 2rem;
+            animation: flicker 3s linear infinite;
+            color: var(--text-color);
+        }
+        .status-text.success { color: #00ff88; text-shadow: 0 0 8px #00ff88; animation: none; }
+        .status-text.denied { color: #ff4747; text-shadow: 0 0 8px #ff4747; animation: none; }
+
+        .biometric-scanner {
+            width: 120px; height: 120px; margin: 0 auto 1.5rem auto;
+            border: 2px solid var(--primary-blue); border-radius: 50%; display:flex; align-items:center; justify-content:center;
+            position: relative; animation: rotate 10s linear infinite; box-shadow: 0 0 20px var(--glow-color), inset 0 0 20px var(--glow-color);
+        }
+        .biometric-scanner::before, .biometric-scanner::after { content:''; position:absolute; border-radius:50%; border:1px solid var(--primary-blue); }
+        .biometric-scanner::before { width:80%; height:80%; animation: rotate 8s linear infinite reverse; }
+        .biometric-scanner::after { width:50%; height:50%; background: radial-gradient(circle, var(--glow-color) 0%, rgba(0,229,255,0) 60%); animation: pulse 2s infinite; }
+
+        .input-group label { display:block; margin-bottom:0.5rem; font-size:0.8rem; letter-spacing:1px; text-align:center; }
+        .input-field { width:100%; background-color: rgba(3,10,20,0.85); border:1px solid var(--border-color); color:var(--primary-blue); padding:0.75rem 1rem; border-radius:0.5rem; text-align:center; font-family:'Orbitron',sans-serif; letter-spacing:2px; }
+        .input-field:focus { outline:none; border-color:var(--glow-color); box-shadow:0 0 15px var(--glow-color), inset 0 0 10px var(--glow-color); }
+
+        .access-button { width:100%; padding:0.75rem; border:1px solid var(--primary-blue); background:transparent; color:var(--primary-blue); font-size:1.2rem; letter-spacing:5px; border-radius:0.5rem; cursor:pointer; }
+        .access-button:hover { background-color:var(--primary-blue); color:var(--background-dark); }
+
+        .footer-text { text-align:center; font-size:0.7rem; letter-spacing:1px; opacity:0.8; margin-top:1.5rem; }
+
+        #matrix-canvas { position: absolute; top:0; left:0; width:100%; height:100%; z-index:50; }
+
+        @keyframes rotate { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+        @keyframes pulse { 0% { transform: scale(0.9); opacity:0.7;} 50% { transform: scale(1.1); opacity:1;} 100% { transform: scale(0.9); opacity:0.7;} }
+        @keyframes flicker { 0%,18%,22%,25%,53%,57%,100%{ text-shadow:0 0 4px var(--text-color),0 0 11px var(--text-color),0 0 19px var(--text-color),0 0 40px var(--glow-color);} 20%,24%,55%{ text-shadow:none;} }
+    </style>
+
+    <script src="https://unpkg.com/tone"></script>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- Authentication Interface (Prepended) -->
+    <div id="auth-overlay" class="absolute inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+        <div class="jarvis-container">
+            <h1 class="header-text">J.A.R.V.I.S. AUTHENTICATION</h1>
+            <p id="status" class="status-text">[STATUS: ONLINE // AWAITING CREDENTIALS]</p>
+
+            <div class="biometric-scanner"></div>
+            <p class="text-center text-sm mb-8 tracking-widest">BIOMETRIC SCAN ACTIVE</p>
+
+            <form id="login-form">
+                <div class="input-group mb-6">
+                    <label for="userId">USER ID</label>
+                    <input type="text" id="userId" class="input-field" value="Badal.STARK" readonly>
+                </div>
+                <div class="input-group mb-8">
+                    <label for="passcode">PASSCODE</label>
+                    <input type="password" id="passcode" class="input-field" autofocus>
+                </div>
+                <button type="submit" class="access-button">ACCESS</button>
+            </form>
+
+            <p class="footer-text">SYS_VER: 2.5.1 | NETWORK: SECURE | POWER: 100%</p>
+        </div>
+        <canvas id="matrix-canvas"></canvas>
+    </div>
+
+    <div class="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6 h-[90vh]">
+        <!-- Left Panel: Info -->
+        <div class="lg:col-span-1 flex flex-col gap-y-4">
+            <div class="hud-element p-4 rounded-lg flex-1 flex flex-col" style="animation-delay: 0.5s;">
+                <h2 class="text-xl border-b border-cyan-700 pb-2 mb-2">TASK MANAGER</h2>
+                <div id="task-list" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 text-sm"></div>
+            </div>
+            <div class="hud-element p-4 rounded-lg" style="animation-delay: 0.7s;">
+                <h2 class="text-xl border-b border-cyan-700 pb-2 mb-2">DIAGNOSTICS</h2>
+                <div id="system-info" class="text-gray-300 text-sm space-y-1"></div>
+            </div>
+            <div class="hud-element p-4 rounded-lg" style="animation-delay: 0.9s;">
+                <h2 class="text-xl border-b border-cyan-700 pb-2 mb-2">WEATHER</h2>
+                <div id="weather-info" class="text-gray-300">Initializing...</div>
+            </div>
+        </div>
+
+        <!-- Center Panel: Interaction -->
+        <div class="hud-element lg:col-span-2 flex flex-col items-center justify-center p-6 rounded-lg" style="animation-delay: 0.3s;">
+            <h1 class="text-5xl font-bold mb-6">J.A.R.V.I.S</h1>
+            <button id="start-btn" class="flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-white z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+            </button>
+            <div class="mt-6 w-full text-left bg-black bg-opacity-30 p-3 rounded">
+                <p class="font-semibold text-gray-400 text-sm">USER:</p>
+                <p id="user-speech" class="text-white italic min-h-[24px]">...</p>
+            </div>
+             <div class="mt-2 w-full text-left bg-black bg-opacity-30 p-3 rounded">
+                <p class="font-semibold text-cyan-400 text-sm">J.A.R.V.I.S.:</p>
+                <p id="assistant-reply" class="text-white min-h-[24px]">...</p>
+            </div>
+             <div class="mt-4 p-4 rounded-lg bg-opacity-30 bg-black">
+                <h2 class="text-xl border-b border-cyan-700 pb-2 mb-2">SYSTEM CLOCK</h2>
+                <div id="time-info" class="text-3xl font-bold text-center"></div>
+                <div id="date-info" class="text-md text-gray-400 text-center"></div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Intelligence Feed -->
+        <div class="lg:col-span-1 flex flex-col gap-y-4">
+             <div class="hud-element flex-1 flex flex-col p-4 rounded-lg" style="animation-delay: 1.1s;">
+                <h2 class="text-xl border-b border-cyan-700 pb-2 mb-2">NEWS FEED</h2>
+                <div id="news-info" class="space-y-3 text-gray-300 overflow-y-auto custom-scrollbar flex-1">Initializing...</div>
+            </div>
+             <div id="gemini-module" class="hud-element flex-1 flex flex-col p-4 rounded-lg" style="animation-delay: 1.3s;">
+                <h2 class="text-xl border-b border-cyan-700 pb-2 mb-2">INTELLIGENCE MODULE</h2>
+                <div id="gemini-output" class="text-gray-300 overflow-y-auto custom-scrollbar flex-1">Awaiting Gemini Task...</div>
+             </div>
+        </div>
+    </div>
+
+    <script>
+        // --- API Keys ---
+        const WEATHER_API_KEY = 'YOUR_OPENWEATHERMAP_API_KEY';
+        const NEWS_API_KEY = 'pub_455a4e51c4584a658689cd375dfdadf5'; // NewsData.io API key
+        const GEMINI_API_KEY = "AIzaSyBAE9jOJYzKuCF3GopGJeB3Z4hCg08RrTM";
+
+        // --- DOM Elements ---
+        const elements = {
+            startBtn: document.getElementById('start-btn'),
+            status: document.getElementById('status'),
+            userSpeech: document.getElementById('user-speech'),
+            assistantReply: document.getElementById('assistant-reply'),
+            weatherInfo: document.getElementById('weather-info'),
+            newsInfo: document.getElementById('news-info'),
+            timeInfo: document.getElementById('time-info'),
+            dateInfo: document.getElementById('date-info'),
+            bootScreen: document.getElementById('boot-screen'),
+            bootText: document.getElementById('boot-text'),
+            geminiOutput: document.getElementById('gemini-output'),
+            geminiModule: document.getElementById('gemini-module'),
+            systemInfo: document.getElementById('system-info'),
+            taskList: document.getElementById('task-list'),
+        };
+        
+        // --- State Management ---
+        let tasks = [];
+        let userLocation = null;
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = 'en-US';
+            recognition.onstart = () => { elements.startBtn.classList.add('listening'); };
+            recognition.onresult = (event) => {
+                const speechResult = event.results[0][0].transcript.toLowerCase().trim();
+                elements.userSpeech.textContent = speechResult;
+                processCommand(speechResult);
+            };
+            recognition.onend = () => { elements.startBtn.classList.remove('listening'); };
+            recognition.onerror = (event) => { console.error('Speech recognition error:', event.error); };
+        } else {
+            speak("Sir, your browser does not support speech recognition.");
+            elements.startBtn.disabled = true;
+        }
+
+        elements.startBtn.addEventListener('click', () => {
+            if (recognition) {
+                elements.userSpeech.textContent = '...';
+                elements.assistantReply.textContent = '...';
+                recognition.start();
+            }
+        });
+
+        function speak(text, isBriefing = false) {
+            if (!isBriefing) {
+                 elements.assistantReply.textContent = text;
+            }
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.voice = window.speechSynthesis.getVoices().find(voice => voice.name.includes("Google") && voice.lang.includes("en-GB"));
+            window.speechSynthesis.speak(utterance);
+        }
+
+        async function callGemini(prompt) {
+            elements.geminiModule.classList.add('thinking');
+            elements.geminiOutput.innerHTML = '<p class="text-cyan-400">Accessing Gemini consciousness...</p>';
+            speak("Accessing the Gemini network, Sir.");
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${GEMINI_API_KEY}`;
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                if (!response.ok) throw new Error(`API call failed: ${response.status}`);
+                const result = await response.json();
+                const candidate = result.candidates?.[0];
+                if (candidate?.content?.parts?.[0]?.text) {
+                    const generatedText = candidate.content.parts[0].text;
+                    elements.geminiOutput.innerHTML = `<p>${generatedText.replace(/\n/g, '<br>')}</p>`;
+                    const speakText = generatedText.split('.')[0] + ".";
+                    speak(speakText);
+                } else {
+                    throw new Error("Invalid response structure from API.");
+                }
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                const errorMessage = "I'm sorry, Sir. I was unable to connect to the Gemini network.";
+                elements.geminiOutput.textContent = errorMessage;
+                speak(errorMessage);
+            } finally {
+                elements.geminiModule.classList.remove('thinking');
+            }
+        }
+
+        async function processCommand(command) {
+            if (command.startsWith('add task') || command.startsWith('remind me to')) {
+                const task = command.replace(/add task|remind me to/gi, '').trim();
+                addTask(task);
+            } else if (command.includes('my tasks') || command.includes('to-do list')) {
+                readTasks();
+            } else if (command.includes('clear tasks') || command.includes('clear my list')) {
+                clearTasks();
+            } else if (command.includes('hello') || command.includes('hi jarvis')) {
+                speak("Hello Sir. All systems are nominal.");
+            }else if (command.includes('who is your boss') || command.includes('who created you')) {
+                speak("Hello sir my boss is Baadal singh.");
+            } else if (command.startsWith('jarvis answer') || command.startsWith('answer the question')) {
+                const question = command.replace(/jarvis answer|answer the question/gi, '').trim();
+                callGemini(`As an AI assistant named J.A.R.V.I.S., answer the following question concisely: ${question}`);
+            } else if (command.includes('system status')) {
+                speak("All systems are online and functioning within normal parameters.");
+            } else if (command.includes('what time is it')) {
+                const now = new Date();
+                speak(`Sir, the current time is ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
+            } else if (command.includes('weather')) {
+                if (userLocation) await fetchWeather(userLocation.latitude, userLocation.longitude, true);
+            } else if (command.includes('latest news') || command.includes('headlines')) {
+                await fetchNews(true);
+            } else if (command.startsWith('open ')) {
+                openWebsite(command.substring(5).trim());
+            } else if (command.startsWith('what is') || command.startsWith('calculate')) {
+                const expression = command.replace(/what is|calculate/gi, '').trim();
+                if (/[\d\+\-\*\/]/.test(expression)) calculate(command);
+                else callGemini(`As an AI assistant named J.A.R.V.I.S., answer concisely: ${expression}`);
+            } else if (command.startsWith('call ')) {
+                makePhoneCall(command.substring(5).trim());
+            } else if (command.startsWith('send a whatsapp to')) {
+                sendWhatsApp(command.substring('send a whatsapp to'.length).trim());
+            } else {
+                // If no specific command is matched, send to Gemini for a conversational response
+                callGemini(`As an AI assistant named J.A.R.V.I.S., respond to the following user statement in a brief, helpful manner: "${command}"`);
+            }
+        }
+        
+        // --- Task Management Functions ---
+        function addTask(task) {
+            if(task) {
+                tasks.push(task);
+                renderTasks();
+                speak(`I've added "${task}" to your list.`);
+            } else {
+                speak("I'm sorry, I didn't catch the task. Please repeat.");
+            }
+        }
+        function readTasks() {
+            if (tasks.length === 0) {
+                speak("Your task list is empty, Sir.");
+            } else {
+                speak("Here are your current tasks:");
+                tasks.forEach(task => speak(task, true));
+            }
+        }
+        function clearTasks() {
+            tasks = [];
+            renderTasks();
+            speak("I have cleared your task list.");
+        }
+        function renderTasks() {
+            elements.taskList.innerHTML = tasks.length > 0 
+                ? `<ul>${tasks.map(task => `<li>- ${task}</li>`).join('')}</ul>` 
+                : '<p class="text-gray-400">No tasks pending.</p>';
+        }
+
+        // --- Utility Functions ---
+        function calculate(command) {
+            const expression = command.replace(/what is|calculate|by/gi, '').replace(/x/g, '*').trim();
+            try {
+                const result = new Function('return ' + expression)();
+                if (isNaN(result)) throw new Error("Invalid calculation");
+                speak(`The result is ${result}.`);
+            } catch (error) {
+                speak("I'm sorry, Sir. I couldn't perform that calculation.");
+            }
+        }
+
+        function openWebsite(site) {
+            const siteMap = { 'google': 'https://www.google.com', 'youtube': 'https://www.youtube.com', 'whatsapp': 'https://web.whatsapp.com' };
+            const url = siteMap[site.toLowerCase()] || `https://www.google.com/search?q=${encodeURIComponent(site)}`;
+            speak(siteMap[site.toLowerCase()] ? `Opening ${site}, Sir.` : `Searching for ${site}, Sir.`);
+            window.open(url, '_blank');
+        }
+
+        function makePhoneCall(contact) {
+            const number = contact.replace(/\s/g, '');
+            speak(`Initiating call to ${contact}, Sir.`);
+            window.open(`tel:${number}`, '_self');
+        }
+
+        function sendWhatsApp(details) {
+            const number = details.replace(/\s/g, '');
+            if (number && !isNaN(number)) {
+                 speak(`Opening WhatsApp to message ${details}.`);
+                 window.open(`https://wa.me/${number}`, '_blank');
+            } else {
+                speak("I could not extract a valid phone number, Sir.");
+            }
+        }
+
+        async function fetchWeather(lat, lon, announce = false) {
+             if (WEATHER_API_KEY === 'YOUR_OPENWEATHERMAP_API_KEY') {
+                elements.weatherInfo.innerHTML = 'Weather API key missing.';
+                return "Weather service is not configured.";
+            }
+            try {
+                const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`);
+                const data = await response.json();
+                if (data.cod !== 200) throw new Error(data.message);
+                const weatherText = `Currently ${Math.round(data.main.temp)}°C with ${data.weather[0].description}.`;
+                elements.weatherInfo.innerHTML = `<p class="text-3xl">${Math.round(data.main.temp)}°C</p><p>${data.weather[0].main} in ${data.name}</p>`;
+                if (announce) speak(weatherText);
+                return `The current weather in ${data.name} is ${Math.round(data.main.temp)} degrees Celsius.`;
+            } catch (error) {
+                elements.weatherInfo.innerHTML = 'Weather data unavailable.';
+                return "I am unable to retrieve weather data.";
+            }
+        }
+
+        async function fetchNews(announce = false) {
+            if (NEWS_API_KEY === 'pub_455a4e51c4584a658689cd375dfdadf5') {
+                elements.newsInfo.innerHTML = 'Awating for headlines.';
+                return "The news feed configured.";
+            }
+            try {
+                const response = await fetch(`https://newsdata.io/api/1/latest?apikey=YOUR_API_KEY&q=pub_455a4e51c4584a658689cd375dfdadf5&prioritydomain=top`);
+                const data = await response.json();
+                if (data.status !== 'ok') throw new Error(data.message);
+                elements.newsInfo.innerHTML = data.articles.slice(0, 5).map(article => `<div class="border-l-2 border-cyan-700 pl-2 mb-2"><p class="font-bold text-sm text-cyan-300">${article.title}</p></div>`).join('');
+                if (announce) speak("Here are the top headlines, Sir.");
+                return `The top headline is: ${data.articles[0].title}`;
+            } catch (error) {
+                elements.newsInfo.innerHTML = 'News feed';
+                return "I was able to fetch the news.";
+            }
+        }
+        
+        // --- System Initialization ---
+        function updateClock() {
+            const now = new Date();
+            elements.timeInfo.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            elements.dateInfo.textContent = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        }
+        
+        function updateSystemInfo() {
+            const cpu = (Math.random() * 30 + 5).toFixed(2);
+            const mem = (Math.random() * 40 + 50).toFixed(2);
+            const net = (Math.random() * 2 + 0.5).toFixed(2);
+            elements.systemInfo.innerHTML = `
+                <p>CPU Core: ${cpu}%</p>
+                <p>Memory Usage: ${mem}%</p>
+                <p>Network: ${net} Gb/s</p>
+            `;
+        }
+
+        function runBootSequence() {
+            const steps = ['INITIALIZING J.A.R.V.I.S. OS...', 'LOADING CORE MODULES...', 'CONNECTING TO GEMINI NETWORK...', 'SYSTEM READY.'];
+            let currentStep = 0;
+            const interval = setInterval(() => {
+                if (currentStep < steps.length) {
+                    elements.bootText.textContent = steps[currentStep++];
+                } else {
+                    clearInterval(interval);
+                    elements.bootScreen.style.opacity = '0';
+                    setTimeout(() => elements.bootScreen.style.display = 'none', 1000);
+                }
+            }, 1200);
+        }
+
+        async function dailyBriefing() {
+            const greeting = "Good morning, Sir. ";
+            const weatherReport = userLocation ? await fetchWeather(userLocation.latitude, userLocation.longitude) : "Location not available for weather report.";
+            const newsReport = await fetchNews();
+            const taskReport = tasks.length > 0 ? `You have ${tasks.length} tasks pending.` : "Your task list is clear.";
+
+            speak(greeting + weatherReport + " " + newsReport + " " + taskReport, true);
+        }
+
+        window.onload = () => {
+            runBootSequence();
+            updateClock();
+            setInterval(updateClock, 1000);
+            renderTasks();
+            updateSystemInfo();
+            setInterval(updateSystemInfo, 3000);
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(async position => {
+                    userLocation = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+                    await dailyBriefing();
+                }, async error => {
+                    console.error("Geolocation error:", error);
+                    await dailyBriefing(); // Briefing without weather
+                });
+            } else {
+                dailyBriefing(); // Briefing without weather
+            }
+        };
+    </script>
+    <script>
+        (function(){
+            // Auth/login script isolated to avoid collision with existing globals
+            document.addEventListener('DOMContentLoaded', () => {
+                const loginForm = document.getElementById('login-form');
+                const passcodeField = document.getElementById('passcode');
+                const statusText = document.getElementById('status');
+                const container = document.querySelector('.jarvis-container');
+                const authOverlay = document.getElementById('auth-overlay');
+
+                // Tone.js synth
+                const synth = new Tone.Synth({
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 }
+                }).toDestination();
+
+                const playSound = (note, duration) => {
+                    if (Tone.context.state !== 'running') Tone.context.resume();
+                    synth.triggerAttackRelease(note, duration);
+                };
+                passcodeField.addEventListener('keydown', () => playSound('C5', '8n'));
+
+                loginForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    playSound('E4', '4n');
+                    statusText.textContent = '[AUTHENTICATING...]';
+                    statusText.className = 'status-text';
+                    container.style.borderColor = 'var(--glow-color)';
+
+                    setTimeout(() => {
+                        if (passcodeField.value.toLowerCase() === 'jarvis' || passcodeField.value.toLowerCase() === 'ironman') {
+                            statusText.textContent = '[ACCESS GRANTED]';
+                            statusText.classList.add('success');
+                            container.style.boxShadow = '0 0 25px rgba(0, 255, 136, 0.5)';
+                            container.style.borderColor = 'rgba(0, 255, 136, 0.5)';
+                            playSound('G5', '2n');
+                            // hide overlay to reveal main UI
+                            authOverlay.style.transition = 'opacity 0.6s ease';
+                            authOverlay.style.opacity = '0';
+                            setTimeout(() => { authOverlay.style.display = 'none'; }, 700);
+                        } else {
+                            statusText.textContent = '[ACCESS DENIED]';
+                            statusText.classList.add('denied');
+                            container.style.boxShadow = '0 0 25px rgba(255, 71, 71, 0.5)';
+                            container.style.borderColor = 'rgba(255, 71, 71, 0.5)';
+                            playSound('C3', '2n');
+                        }
+                    }, 1200);
+                });
+
+                // Matrix background for auth overlay
+                const canvas = document.getElementById('matrix-canvas');
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+                    resize(); window.addEventListener('resize', resize);
+                    const letters = '01';
+                    const fontSize = 14;
+                    const columns = Math.floor(canvas.width / fontSize);
+                    let drops = Array(columns).fill(1);
+
+                    function draw() {
+                        ctx.fillStyle = 'rgba(3, 10, 20, 0.06)';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.fillStyle = 'rgba(0,229,255,0.9)';
+                        ctx.font = `${fontSize}px Orbitron`;
+                        for (let i = 0; i < drops.length; i++) {
+                            const text = letters[Math.floor(Math.random() * letters.length)];
+                            ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                            if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                            drops[i]++;
+                        }
+                    }
+                    setInterval(draw, 40);
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
